@@ -1,0 +1,70 @@
+version: "2"
+
+# docker network create --driver bridge --subnet 172.40.1.0/24 --gateway 172.40.1.1 my_net
+networks:
+  apollo:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+        - gateway: 172.20.0.1
+
+services:
+  apollo-configservice:                                         ##容器服务名
+    ##容器名
+    container_name: apollo-configservice
+    ##Dockerfile路径
+    build: apollo-configservice/
+    ##镜像名
+    image: apollo-configservice
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/Users/king/docker-local-data/apollo2/logs:/opt/logs"    ##将/opt/logs目录挂载到宿主机的/Users/king/docker-local-data/apollo2/logs方便在宿主机上查看日志
+    networks:
+      apollo:
+        ipv4_address: 172.20.0.8
+    # 由于在打包的时候以及把数据库及ip信息写入配置文件，这里就不需要再次更改启动参数
+    environment:
+       - spring_datasource_url=jdbc:mysql://172.20.0.2:3306/ApolloConfigDB?characterEncoding=utf8
+       - spring_datasource_username=root
+       - spring_datasource_password=123456
+#       - eureka.instance.ip-address=172.20.0.8
+    restart: always
+
+  apollo-adminservice:
+    container_name: apollo-adminservice
+    build: apollo-adminservice/
+    image: apollo-adminservice
+    ports:
+      - "8090:8090"
+    depends_on:
+      - apollo-configservice
+    volumes:
+      - "/Users/king/docker-local-data/apollo2/logs:/opt/logs"
+    networks:
+      apollo:
+        ipv4_address: 172.20.0.9
+#    environment:
+#      - eureka.instance.ip-address=172.20.0.8
+    restart: always
+
+  apollo-portal:
+    container_name: apollo-portal
+    build: apollo-portal/
+    image: apollo-portal
+    ports:
+      - "8070:8070"
+    depends_on:
+      - apollo-configservice
+      - apollo-adminservice
+    volumes:
+      - "/Users/king/docker-local-data/apollo2/logs:/opt/logs"
+    networks:
+      apollo:
+        ipv4_address: 172.20.0.7
+    environment:
+      - spring_datasource_url=jdbc:mysql://172.20.0.2:3306/ApolloPortalDB?characterEncoding=utf8
+      - spring_datasource_username=root
+      - spring_datasource_password=123456
+#      - eureka.instance.ip-address=172.20.0.8
+    restart: always
